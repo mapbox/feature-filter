@@ -51,6 +51,10 @@ var operators = {
     },
     'none': function() {
         return '!(' + operators.any.apply(this, arguments) + ')';
+    },
+    '=~': function(_, key, value) {
+        return 'typeof(p[' + JSON.stringify(key) + ']) === \'string\' &&' +
+            '(new RegExp(' + JSON.stringify(value) + ')).test(p[' + JSON.stringify(key) + '])';
     }
 };
 

@@ -321,3 +321,22 @@ test('none', function(t) {
 
     t.end();
 });
+
+test('=~', function(t) {
+    var f1 = filter(['=~', 'foo', '.*hello.*']);
+    t.equal(f1({properties: {foo: 'hello world'}}), true);
+    t.equal(f1({properties: {foo: 'Hello world'}}), false);
+    t.equal(f1({properties: {foo: 12}}), false);
+
+    var f2 = filter(['=~', 'foo', 'a/b']);
+    t.equal(f2({properties: {foo: 'a/b'}}), true);
+
+    var f3 = filter(['=~', 'foo', '2+[a|b]']);
+    t.equal(f3({properties: {foo: '2a'}}), true);
+    t.equal(f3({properties: {foo: '222222222a'}}), true);
+    t.equal(f3({properties: {foo: '2b'}}), true);
+    t.equal(f3({properties: {foo: 'a'}}), false);
+    t.equal(f3({properties: {foo: '2'}}), false);
+
+    t.end();
+});
