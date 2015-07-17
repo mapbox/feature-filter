@@ -10,6 +10,13 @@ test('degenerate', function(t) {
     t.end();
 });
 
+test('nested tags', function(t) {
+    var f = filter(['==', ['tags', 'building'], 'yes']);
+    t.equal(f({properties: {building: 'yes'}}), false);
+    t.equal(f({properties: {tags: {building: 'yes'}}}), true);
+    t.end();
+})
+
 test('==, string', function(t) {
     var f = filter(['==', 'foo', 'bar']);
     t.equal(f({properties: {foo: 'bar'}}), true);
