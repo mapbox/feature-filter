@@ -2,12 +2,17 @@
 
 var VectorTileFeatureTypes = ['Unknown', 'Point', 'LineString', 'Polygon'];
 
+
 function infix(operator) {
     return function(_, key, value) {
         if (key === '$type') {
             return 't' + operator + VectorTileFeatureTypes.indexOf(value);
         } else {
+            if (Array.isArray(key)){
+                return nestedFilterHelper(operator, key, value)
+            } else {
             return 'p[' + JSON.stringify(key) + ']' + operator + JSON.stringify(value);
+            }
         }
     };
 }
@@ -54,6 +59,23 @@ var operators = {
     }
 };
 
+function nestedFilterHelper(operator, key, value){
+    var string = '('
+    var fullPath = ''
+    var i = 0;
+    while (i < key.length){
+        var j = 0;
+        var tempString = ''
+        while (j <= i){
+            tempString += '[' + JSON.stringify(key[j]) + ']'
+            j++;
+        }
+        i === key.length-1 ? (string += ('p' + tempString), fullPath = tempString) : string += ('p' + tempString + ' && ');
+        i++;
+    }    
+    return string +') ? (p' + fullPath + operator + JSON.stringify(value) + ') : false';
+}
+
 function compile(filter) {
     return operators[filter[0]].apply(filter, filter);
 }
@@ -72,7 +94,9 @@ function truth() {
  */
 module.exports = function (filter) {
     if (!filter) return truth;
-    var filterStr = 'var p = f.properties || f.tags || {}, t = f.type; return ' + compile(filter) + ';';
+    var filterStr = 'var p = f.properties || (f.properties && f.properties.tags) || {}, t = f.type; return ' + compile(filter) + ';';
     // jshint evil: true
+    console.log(filterStr);
+    console.log('this is before the function is returned')
     return new Function('f', filterStr);
 };
