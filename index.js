@@ -96,7 +96,5 @@ module.exports = function (filter) {
     if (!filter) return truth;
     var filterStr = 'var p = f.properties || (f.properties && f.properties.tags) || {}, t = f.type; return ' + compile(filter) + ';';
     // jshint evil: true
-    console.log(filterStr);
-    console.log('this is before the function is returned')
     return new Function('f', filterStr);
 };
