@@ -32,9 +32,12 @@ var operators = {
     '<=': strictInfix('<='),
     '>=': strictInfix('>='),
     'in': function(_, key) {
-        return Array.prototype.slice.call(arguments, 2).map(function(value) {
-            return '(' + operators['=='](_, key, value) + ')';
-        }).join('||') || 'false';
+        return (key==='$type')?
+            Array.prototype.slice.call(arguments, 2).map(function(value) {
+                return '(' + operators['=='](_, key, value) + ')';
+            }).join('||') || 'false'
+            :
+            JSON.stringify(Array.prototype.slice.call(arguments, 2))+'.indexOf(p['+JSON.stringify(key)+'])>=0';
     },
     '!in': function() {
         return '!(' + operators.in.apply(this, arguments) + ')';
