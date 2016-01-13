@@ -33,8 +33,8 @@ var operators = {
     '>=': strictInfix('>='),
     'in': function(_, key) {
         return '(function(){' + Array.prototype.slice.call(arguments, 2).map(function(value) {
-                return 'if (' + operators['=='](_, key, value) + ') return true;';
-            }).join('') + 'return false;})()';
+            return 'if (' + operators['=='](_, key, value) + ') return true;';
+        }).join('') + 'return false;})()';
     },
     '!in': function() {
         return '!(' + operators.in.apply(this, arguments) + ')';
