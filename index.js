@@ -3,26 +3,34 @@
 var VectorTileFeatureTypes = ['Unknown', 'Point', 'LineString', 'Polygon'];
 
 function infix(operator) {
-    return function(_, key, value) {
-        if (key === '$type') {
-            return 't' + operator + VectorTileFeatureTypes.indexOf(value);
-        } else {
-            return 'p[' + JSON.stringify(key) + ']' + operator + JSON.stringify(value);
+    return {
+        vars: empty,
+        f: function(_, _2, key, value) {
+            if (key === '$type') {
+                return 't' + operator + VectorTileFeatureTypes.indexOf(value);
+            } else {
+                return 'p[' + JSON.stringify(key) + ']' + operator + JSON.stringify(value);
+            }
         }
     };
 }
 
 function strictInfix(operator) {
-    var nonstrictInfix = infix(operator);
-    return function(_, key, value) {
-        if (key === '$type') {
-            return nonstrictInfix(_, key, value);
-        } else {
-            return 'typeof(p[' + JSON.stringify(key) + ']) === typeof(' + JSON.stringify(value) + ') && ' +
-                nonstrictInfix(_, key, value);
+    var nonstrictInfix = infix(operator).f;
+    return {
+        vars: empty,
+        f: function(_, _2, key, value) {
+            if (key === '$type') {
+                return nonstrictInfix(_, _2, key, value);
+            } else {
+                return 'typeof(p[' + JSON.stringify(key) + ']) === typeof(' + JSON.stringify(value) + ') && ' +
+                    nonstrictInfix(_, _2, key, value);
+            }
         }
     };
 }
+
+var hashThreshold = 30;
 
 var operators = {
     '==': infix('==='),
@@ -31,31 +39,92 @@ var operators = {
     '<': strictInfix('<'),
     '<=': strictInfix('<='),
     '>=': strictInfix('>='),
-    'in': function(_, key) {
-        return '(function(){' + Array.prototype.slice.call(arguments, 2).map(function(value) {
-            return 'if (' + operators['=='](_, key, value) + ') return true;';
-        }).join('') + 'return false;})()';
+    'in': {
+        vars: function(_, _2, key) {
+            var valueList = Array.prototype.slice.call(arguments, 3);
+            if (valueList.length < hashThreshold) {
+                return [];
+            }
+            var values = {};
+            valueList.forEach(function(value) {
+                if (key === '$type') {
+                    values[VectorTileFeatureTypes.indexOf(value)] = true;
+                } else {
+                    values[typeof(value) + '' + value] = true;
+                }
+            });
+            return [{
+                name: 'v' + arguments[0].length,
+                value: values
+            }];
+        },
+        f: function (_, _2, key) {
+            var valueList = Array.prototype.slice.call(arguments, 3);
+            if (valueList.length < hashThreshold) {
+                return '(function(){' + valueList.map(function(value) {
+                    return 'if (' + operators['=='].f(_, _2, key, value) + ') return true;';
+                }).join('') + 'return false;})()';
+            } else {
+                if (key === '$type') {
+                    return '!!v' + arguments[0].length + '[t]';
+                } else {
+                    return '!!v' + arguments[0].length + '[typeof(p[' + JSON.stringify(key) + ']) + "" + p[' + JSON.stringify(key) + ']]';
+                }
+            }
+        }
     },
-    '!in': function() {
-        return '!(' + operators.in.apply(this, arguments) + ')';
+    '!in': {
+        vars: function() { return operators.in.vars.apply(this, arguments) },
+        f: function () {
+            return '!(' + operators.in.f.apply(this, arguments) + ')';
+        }
     },
-    'any': function() {
-        return Array.prototype.slice.call(arguments, 1).map(function(filter) {
-            return '(' + compile(filter) + ')';
-        }).join('||') || 'false';
+    'any': {
+        vars: empty,
+        f: function () {
+            return Array.prototype.slice.call(arguments, 2).map(function (filter) {
+                    return '(' + subcompile(arguments[0], filter) + ')';
+                }).join('||') || 'false';
+        }
     },
-    'all': function() {
-        return Array.prototype.slice.call(arguments, 1).map(function(filter) {
-            return '(' + compile(filter) + ')';
-        }).join('&&') || 'true';
+    'all': {
+        vars: empty,
+        f: function() {
+            return Array.prototype.slice.call(arguments, 2).map(function(filter) {
+                    return '(' + subcompile(arguments[0], filter) + ')';
+                }).join('&&') || 'true';
+        }
     },
-    'none': function() {
-        return '!(' + operators.any.apply(this, arguments) + ')';
+    'none': {
+        vars: empty,
+        f: function() {
+            return '!(' + operators.any.f.apply(this, arguments) + ')';
+        }
     }
 };
 
-function compile(filter) {
-    return operators[filter[0]].apply(filter, filter);
+function subcompile(allVars, filter) {
+    var op = operators[filter[0]];
+    var args = filter.slice();
+    args.unshift(allVars);
+    var f = op.f.apply(filter, args);
+    var vars = op.vars.apply(filter, args);
+    if (vars) {
+        allVars.push.apply(allVars, vars);
+    }
+    return f;
+}
+
+function compile(allVars, filter) {
+    var f = subcompile(allVars, filter);
+    return {
+        vars: allVars,
+        f: f
+    };
+}
+
+function empty() {
+    return [];
 }
 
 function truth() {
@@ -72,7 +141,11 @@ function truth() {
  */
 module.exports = function (filter) {
     if (!filter) return truth;
-    var filterStr = 'var p = f.properties || f.tags || {}, t = f.type; return ' + compile(filter) + ';';
+    var compiled = compile([], filter);
+    var vars = compiled.vars.map(function(v) {
+        return 'var ' + v.name + ' = ' + JSON.stringify(v.value);
+    });
+    var filterStr = vars.join(';') + ';(function(f) {var p = f.properties || f.tags || {}, t = f.type;return ' + compiled.f + '});';
     // jshint evil: true
-    return new Function('f', filterStr);
+    return eval(filterStr);
 };
