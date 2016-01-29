@@ -3,7 +3,7 @@
 module.exports = createFilter;
 
 var types = ['Unknown', 'Point', 'LineString', 'Polygon'];
-var typeLookup = {'Point': 1, 'LineString': 2, 'Polygon': 3}
+var typeLookup = {'Point': 1, 'LineString': 2, 'Polygon': 3};
 
 /**
  * Given a filter expressed as nested arrays, return a new function
@@ -47,33 +47,33 @@ function createFilter(filter) {
 }
 
 function createOp(opFn, key, val) {
-    return function (f) {
+    return function(f) {
         return opFn(f.properties || f.tags || {}, f.type, key, val);
-    }
+    };
 }
 function createAny(opFn) {
-    return function (f) {
+    return function(f) {
         for (var i = 0; i < opFn.length; i++) {
             if (opFn[i](f)) return true;
         }
         return false;
-    }
+    };
 }
 function createAll(opFn) {
-    return function (f) {
+    return function(f) {
         for (var i = 0; i < opFn.length; i++) {
             if (!opFn[i](f)) return false;
         }
         return true;
-    }
+    };
 }
 function createNone(opFn) {
-    return function (f) {
+    return function(f) {
         for (var i = 0; i < opFn.length; i++) {
             if (opFn[i](f)) return false;
         }
         return true;
-    }
+    };
 }
 
 function inNormal(p, t, key, val) { return val.indexOf(p[key]) !== -1; }
