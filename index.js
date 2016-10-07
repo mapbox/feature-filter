@@ -34,6 +34,7 @@ function compile(filter) {
         op === '!in' ? compileNegation(compileInOp(filter[1], filter.slice(2))) :
         op === 'has' ? compileHasOp(filter[1]) :
         op === '!has' ? compileNegation(compileHasOp([filter[1]])) :
+        op === 'match' ? compileRegexMatch(filter[1], filter[2]) :
         'true';
     return '(' + str + ')';
 }
@@ -79,4 +80,9 @@ function compileNegation(expression) {
 // Comparison function to sort numbers and strings
 function compare(a, b) {
     return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function compileRegexMatch(property, value) {
+    var left = compilePropertyReference(property);
+    return 'typeof ' + left + ' === "string"&&' + left + '.match(' + value + ') !== null';
 }

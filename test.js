@@ -421,9 +421,20 @@ test('!has', function(t) {
     t.equal(f({properties: {foo: 1}}), false);
     t.equal(f({properties: {foo: '0'}}), false);
     t.equal(f({properties: {foo: false}}), false);
-    t.equal(f({properties: {foo: false}}), false);
     t.equal(f({properties: {foo: null}}), false);
     t.equal(f({properties: {foo: undefined}}), false);
     t.equal(f({properties: {}}), true);
+    t.end();
+});
+
+test('match', function(t) {
+    var f = filter(['match', 'foo', '/^1/']);
+    t.equal(f({properties: {foo: '12345'}}), true);
+    t.equal(f({properties: {foo: '012345'}}), false);
+    t.equal(f({properties: {foo: 12345}}), false);
+    t.equal(f({properties: {foo: false}}), false);
+    t.equal(f({properties: {foo: null}}), false);
+    t.equal(f({properties: {foo: undefined}}), false);
+    t.equal(f({properties: {}}), false);
     t.end();
 });
